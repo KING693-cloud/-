@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TERMINAL v30 | PRO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --g-blue: #1a73e8; --g-red: #ea4335; --g-green: #34a853; --g-gold: #fbbc04;
+            --bg: #000; --border: #111; --card: #050505;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: #fff; overflow-x: hidden; min-height: 100vh; }
+
+        /* --- HIGH-SPEED LOADING --- */
+        #loading-screen {
+            position: fixed; inset: 0; background: #000; z-index: 10000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .spinner { width: 50px; height: 50px; border: 3px solid #111; border-top: 3px solid var(--g-blue); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .load-msg { margin-top: 15px; font-size: 10px; letter-spacing: 3px; font-weight: 900; color: #333; }
+
+        /* --- FULL SCREEN SUCCESS OVERLAY --- */
+        #notification-overlay {
+            position: fixed; inset: 0; z-index: 99999; pointer-events: none;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .toast-full {
+            background: rgba(0,0,0,0.95); border: 1px solid #222; padding: 30px 50px; border-radius: 20px;
+            text-align: center; transform: scale(0.8); opacity: 0; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .toast-full.active { transform: scale(1); opacity: 1; }
+        .toast-full i { font-size: 40px; margin-bottom: 15px; display: block; }
+
+        /* --- HEADER & CONTROLS --- */
+        header { padding: 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .node-info h1 { font-size: 14px; letter-spacing: 5px; font-weight: 950; }
+        .node-badge { font-size: 10px; color: var(--g-gold); font-weight: 800; padding: 4px 8px; border: 1px solid #222; border-radius: 5px; }
+
+        .bench { padding: 20px; border-bottom: 1px solid var(--border); }
+        .search-wrapper { position: relative; margin-bottom: 15px; }
+        .search-wrapper i { position: absolute; left: 15px; top: 18px; color: #444; }
+        .search-input { width: 100%; background: #080808; border: 1px solid #151515; padding: 18px 15px 18px 45px; border-radius: 12px; color: #fff; font-size: 14px; outline: none; }
+
+        .quick-add { display: flex; gap: 10px; }
+        .add-field { flex: 1; background: #080808; border: 1px solid #151515; padding: 18px; border-radius: 12px; color: #fff; font-size: 12px; font-weight: 700; outline: none; }
+        .btn-plus { width: 60px; background: #fff; color: #000; border: none; border-radius: 12px; font-size: 20px; cursor: pointer; }
+
+        /* --- NODES GRID --- */
+        main { padding: 20px 20px 180px 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 15px; }
+        .card { background: #030303; border: 1px solid #111; border-radius: 18px; padding: 20px; transition: 0.3s; }
+        .card.is-dirty { border-top: 3px solid var(--g-gold); }
+        .card.is-synced { border-top: 3px solid var(--g-green); }
+
+        .v-id { font-size: 8px; color: #222; font-family: monospace; display: block; margin-bottom: 10px; }
+        .f-label { font-size: 9px; color: #444; font-weight: 900; margin-bottom: 5px; display: block; }
+        .f-input { width: 100%; background: #000; border: 1px solid #0f0f0f; padding: 12px; border-radius: 8px; color: #fff; font-size: 16px; font-weight: 800; margin-bottom: 15px; outline: none; }
+
+        .btn-group { display: flex; gap: 8px; }
+        .action-btn { flex: 1; padding: 12px 5px; border-radius: 8px; border: none; font-size: 9px; font-weight: 900; text-transform: uppercase; }
+        .btn-save { background: var(--g-green); color: #fff; }
+        .btn-files { background: #111; color: #444; pointer-events: none; }
+        .is-synced .btn-files { background: var(--g-blue); color: #fff; pointer-events: auto; }
+
+        /* --- FOOTER --- */
+        .footer { position: fixed; bottom: 0; width: 100%; padding: 25px; background: #000; border-top: 1px solid var(--border); z-index: 9000; }
+        .deploy-btn { width: 100%; background: #fff; color: #000; padding: 22px; border-radius: 15px; font-weight: 950; font-size: 14px; text-transform: uppercase; letter-spacing: 4px; border: none; }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div id="loading-screen">
+    <div class="spinner"></div>
+    <div class="load-msg">LINKING_GLOBAL_DATABASE</div>
+</div>
+
+<div id="notification-overlay">
+    <div id="toast-box" class="toast-full">
+        <i id="toast-icon" class="fa fa-check-circle"></i>
+        <p id="toast-text" style="font-weight: 900; letter-spacing: 1px;"></p>
+    </div>
+</div>
+
+<header>
+    <div class="node-info">
+        <h1>TERMINAL V30</h1>
+        <span class="node-badge" id="stats">SYNCING...</span>
+    </div>
+</header>
+
+<div class="bench">
+    <div class="search-wrapper">
+        <i class="fa fa-search"></i>
+        <input type="text" id="search" class="search-input" placeholder="SEARCH ACTIVE NODES..." oninput="render()">
+    </div>
+    <div class="quick-add">
+        <input type="text" id="newSub" class="add-field" placeholder="SUBJECT NAME (E.G MATHS)">
+        <button class="btn-plus" onclick="add()"><i class="fa fa-plus"></i></button>
+    </div>
+</div>
+
+<main id="grid"></main>
+
+<div class="footer">
+    <button class="deploy-btn" onclick="massSync()">DEPLOY ALL STAGED CHANGES</button>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCV_DNVJwg9fE_ND9lwqfzAYVAi-MZDfj0",
+        authDomain: "exam-key-7943c.firebaseapp.com",
+        projectId: "exam-key-7943c",
+        storageBucket: "exam-key-7943c.firebasestorage.app",
+        messagingSenderId: "712629635682",
+        appId: "1:712629635682:web:dc063709ca6ecdb85c1f3b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    let state = [];
+
+    function showToast(msg, isErr = false) {
+        const box = document.getElementById('toast-box');
+        const icon = document.getElementById('toast-icon');
+        const txt = document.getElementById('toast-text');
+
+        txt.innerText = msg.toUpperCase();
+        box.style.borderColor = isErr ? 'var(--g-red)' : 'var(--g-green)';
+        icon.className = isErr ? 'fa fa-times-circle' : 'fa fa-check-circle';
+        icon.style.color = isErr ? 'var(--g-red)' : 'var(--g-green)';
+
+        box.classList.add('active');
+        setTimeout(() => box.classList.remove('active'), 2000);
+    }
+
+    function generateUniquePin() {
+        let p;
+        do { p = Math.floor(10000 + Math.random() * 90000).toString(); } 
+        while (state.some(n => n.pin === p));
+        return p;
+    }
+
+    async function load() {
+        try {
+            const snap = await getDocs(collection(db, "keys"));
+            state = [];
+            snap.forEach(d => {
+                const data = d.data();
+                state.push({
+                    vaultID: data.vaultID,
+                    pin: d.id,
+                    old: d.id,
+                    name: data.subjectName,
+                    status: 'synced'
+                });
+            });
+            render();
+            document.getElementById('loading-screen').style.display = 'none';
+        } catch (e) {
+            showToast("FIREBASE OFFLINE", true);
+        }
+    }
+
+    /* --- RENDER FIX: Passing Subject Name (s) to create.html --- */
+    window.render = function() {
+        const query = document.getElementById('search').value.toUpperCase();
+        const filtered = state.filter(s => s.name.toUpperCase().includes(query));
+        document.getElementById('stats').innerText = `${filtered.length} ACTIVE NODES`;
+
+        document.getElementById('grid').innerHTML = filtered.map((item, i) => `
+            <div class="card ${item.status === 'synced' ? 'is-synced' : 'is-dirty'}">
+                <span class="v-id">SECURE_ID: ${item.vaultID}</span>
+                <span class="f-label">SUBJECT</span>
+                <input type="text" class="f-input" value="${item.name}" oninput="update(${state.indexOf(item)}, 'name', this.value)">
+                
+                <span class="f-label">5-DIGIT ACCESS PIN</span>
+                <input type="number" class="f-input" value="${item.pin}" oninput="update(${state.indexOf(item)}, 'pin', this.value)">
+                
+                <div class="btn-group">
+                    <button class="action-btn btn-save" onclick="syncNode(${state.indexOf(item)})">DEPLOY</button>
+                    <button class="action-btn btn-files" onclick="window.location.href='create.html?id=${item.vaultID}&s=${encodeURIComponent(item.name)}'">ASSETS</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    window.update = (idx, field, val) => {
+        const item = state[idx];
+        if(field === 'pin') item.pin = val.toString().slice(0, 5);
+        else item.name = val.toUpperCase();
+        item.status = 'dirty';
+    };
+
+    window.add = () => {
+        const name = document.getElementById('newSub').value.toUpperCase();
+        if(!name) return showToast("NAME REQUIRED", true);
+        
+        state.unshift({
+            vaultID: Math.random().toString(36).substr(2, 8).toUpperCase(),
+            pin: generateUniquePin(),
+            old: null,
+            name: name,
+            status: 'dirty'
+        });
+        
+        document.getElementById('newSub').value = "";
+        render();
+        showToast("NODE STAGED");
+    };
+
+    window.syncNode = async (idx) => {
+        const node = state[idx];
+        if(node.pin.length !== 5) return showToast("PIN MUST BE 5 DIGITS", true);
+
+        if(state.filter(n => n.pin === node.pin).length > 1) return showToast("KEY COLLISION DETECTED", true);
+
+        try {
+            if(node.old && node.old !== node.pin) await deleteDoc(doc(db, "keys", node.old));
+            
+            await setDoc(doc(db, "keys", node.pin), {
+                subjectName: node.name,
+                vaultID: node.vaultID,
+                lastSync: serverTimestamp()
+            });
+
+            node.old = node.pin;
+            node.status = 'synced';
+            render();
+            showToast(`${node.name} DEPLOYED`);
+        } catch (e) {
+            showToast("SYNC FAILED", true);
+        }
+    };
+
+    window.massSync = async () => {
+        const dirty = state.filter(n => n.status === 'dirty');
+        if(dirty.length === 0) return showToast("SYSTEM CLEAN", false);
+        
+        for(let n of dirty) {
+            await syncNode(state.indexOf(n));
+        }
+        showToast("GLOBAL DEPLOY COMPLETE");
+    };
+
+    load();
+</script>
+</body>
+</html>

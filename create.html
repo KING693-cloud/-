@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ASSET MASTER v42</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --accent: #1a73e8; --danger: #ea4335; --success: #34a853; --bg: #000; --panel: #0d0d0d; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: #fff; padding-bottom: 180px; overflow-x: hidden; }
+
+        /* --- LOADING OVERLAY --- */
+        #sync-overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        .bar-load { width: 220px; height: 2px; background: #111; overflow: hidden; position: relative; border-radius: 10px; }
+        .bar-load::after { content: ''; position: absolute; width: 40%; height: 100%; background: var(--accent); animation: shift 0.8s infinite linear; }
+        @keyframes shift { 0% { left: -40%; } 100% { left: 140%; } }
+
+        /* --- HEADER & NAVIGATION --- */
+        header { 
+            position: sticky; top: 0; z-index: 2000; background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(15px); border-bottom: 1px solid #1a1a1a; padding: 12px 20px;
+        }
+        .header-row { display: flex; align-items: center; justify-content: space-between; }
+        .id-badge { font-size: 10px; color: #555; font-family: monospace; font-weight: 900; background: #050505; padding: 4px 8px; border: 1px solid #111; }
+        #topSubjectDisplay { font-size: 14px; font-weight: 950; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; text-align: center; margin-top: 8px; border-top: 1px solid #111; padding-top: 5px; }
+
+        /* --- UI COMPONENTS --- */
+        .sub-display-box { background: #050505; border: 1px solid #1a1a1a; border-radius: 15px; color: #fff; font-weight: 900; font-size: 18px; margin: 20px 25px 0 25px; padding: 20px; text-transform: uppercase; border-left: 5px solid var(--accent); }
+        .upload-zone { background: #050505; border: 1px dashed #222; border-radius: 20px; margin: 20px 25px; padding: 40px 20px; text-align: center; color: var(--accent); font-weight: 900; font-size: 11px; }
+        
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0 25px; }
+        .pic-box { position: relative; aspect-ratio: 1/1; background: #080808; border: 1px solid #1a1a1a; border-radius: 15px; overflow: hidden; }
+        .pic-box img { width: 100%; height: 100%; object-fit: cover; }
+        .tag { position: absolute; bottom: 8px; left: 8px; background: var(--accent); font-size: 7px; padding: 4px 8px; border-radius: 5px; font-weight: 900; }
+        .del { position: absolute; top: 8px; right: 8px; background: var(--danger); border: none; color: #fff; width: 30px; height: 30px; border-radius: 50%; font-size: 20px; }
+
+        .intel-input { width: calc(100% - 50px); margin: 25px; background: var(--panel); border: 1px solid #1a1a1a; border-radius: 20px; color: #ccc; padding: 25px; min-height: 200px; outline: none; font-size: 14px; }
+        
+        .footer { position: fixed; bottom: 0; width: 100%; padding: 25px; background: linear-gradient(transparent, #000 50%); z-index: 5000; }
+        .btn-deploy { width: 100%; background: var(--success); color: #fff; padding: 22px; border-radius: 18px; border: none; font-weight: 950; text-transform: uppercase; letter-spacing: 3px; }
+
+        /* --- MODAL --- */
+        .ui-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 8000; display: none; justify-content: center; align-items: center; padding: 25px; }
+        .ui-card { width: 100%; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 30px; padding: 35px; text-align: center; }
+        .cat-btn { width: 100%; background: #111; color: #fff; padding: 20px; border-radius: 15px; border: 1px solid #222; margin-bottom: 12px; font-weight: 900; font-size: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="sync-overlay">
+    <div class="bar-load"></div>
+    <p id="loaderText" style="margin-top: 15px; font-size: 8px; color: #444; letter-spacing: 3px; font-weight: 900;">PROCESSING BATCH...</p>
+</div>
+
+<header>
+    <div class="header-row">
+        <!-- LINK UPDATED TO ADMIN.HTML -->
+        <button style="background:#111; color:#fff; border:1px solid #222; padding:8px 15px; border-radius:8px; font-size:10px; font-weight:900;" onclick="window.location.href='ADMIN.html'">EXIT</button>
+        <div id="permID" class="id-badge">ID: ...</div>
+    </div>
+    <div id="topSubjectDisplay">...</div>
+</header>
+
+<div class="ui-modal" id="catModal">
+    <div class="ui-card">
+        <p id="batchInfo" style="color: #444; font-size: 9px; margin-bottom: 20px; font-weight: 900;"></p>
+        <button class="cat-btn" onclick="addAsset('QUESTION')">QUESTION</button>
+        <button class="cat-btn" onclick="addAsset('ANSWER')">ANSWER</button>
+        <button class="cat-btn" onclick="addAsset('PRACTICAL')">PRACTICAL</button>
+    </div>
+</div>
+
+<div class="sub-display-box" id="subjectNameLabel">SUBJECT UNNAMED</div>
+
+<div class="upload-zone" onclick="document.getElementById('fileIn').click()">
+    <i class="fa fa-layer-group" style="font-size: 24px; display: block; margin-bottom: 10px;"></i>
+    BULK INJECT ASSETS (20+)
+    <input type="file" id="fileIn" style="display:none" accept="image/*" multiple onchange="handleBulk(this)">
+</div>
+
+<div class="grid" id="mainGrid"></div>
+<textarea id="textData" class="intel-input" placeholder=">> Theory Intel Flow..."></textarea>
+
+<div class="footer">
+    <button class="btn-deploy" id="saveBtn" onclick="save()">DEPLOY TO VAULT</button>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyCV_DNVJwg9fE_ND9lwqfzAYVAi-MZDfj0", authDomain: "exam-key-7943c.firebaseapp.com", projectId: "exam-key-7943c", storageBucket: "exam-key-7943c.firebasestorage.app", messagingSenderId: "712629635682", appId: "1:712629635682:web:dc063709ca6ecdb85c1f3b" };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    let vaultID = params.get('id');
+    let subjectName = params.get('s');
+
+    // --- ADMIN SYNC LOGIC ---
+    // This ensures the name is pulled correctly from the ADMIN link
+    const finalName = subjectName ? decodeURIComponent(subjectName) : "SUBJECT UNNAMED";
+    document.getElementById('permID').innerText = `ID: ${vaultID ? vaultID.toUpperCase() : "NO-KEY"}`;
+    document.getElementById('subjectNameLabel').innerText = finalName;
+    document.getElementById('topSubjectDisplay').innerText = finalName;
+
+    let assets = [];
+    let tempFiles = [];
+
+    // --- Bulk Optimization for A05 ---
+    const compress = (file) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const width = 650; // Optimized for performance/storage balance
+                    canvas.width = width;
+                    canvas.height = img.height * (width / img.width);
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.45)); 
+                };
+            };
+        });
+    };
+
+    window.handleBulk = (i) => {
+        if(i.files.length) {
+            tempFiles = Array.from(i.files);
+            document.getElementById('batchInfo').innerText = `INJECTING ${tempFiles.length} ASSETS`;
+            document.getElementById('catModal').style.display='flex';
+        }
+    };
+
+    window.addAsset = async (type) => {
+        document.getElementById('catModal').style.display = 'none';
+        document.getElementById('sync-overlay').style.display = 'flex';
+        
+        for (let i = 0; i < tempFiles.length; i++) {
+            document.getElementById('loaderText').innerText = `INJECTING ${i+1}/${tempFiles.length}...`;
+            const url = await compress(tempFiles[i]);
+            assets.unshift({ url, type, id: Date.now() + Math.random() });
+        }
+        
+        render();
+        document.getElementById('sync-overlay').style.display = 'none';
+    };
+
+    window.remove = (id) => { assets = assets.filter(a => a.id !== id); render(); };
+
+    function render() {
+        const grid = document.getElementById('mainGrid');
+        grid.innerHTML = "";
+        assets.forEach(a => {
+            const d = document.createElement('div');
+            d.className = 'pic-box';
+            d.innerHTML = `<img src="${a.url}"><span class="tag">${a.type}</span><button class="del" onclick="remove(${a.id})">&times;</button>`;
+            grid.appendChild(d);
+        });
+    }
+
+    window.save = async () => {
+        if(!vaultID) return;
+        const b = document.getElementById('saveBtn');
+        b.innerText = "🚀 DEPLOYING...";
+        b.disabled = true;
+
+        try {
+            await setDoc(doc(db, "vault", vaultID), {
+                vaultID, subjectName: finalName, images: assets, textIntel: document.getElementById('textData').value, timestamp: serverTimestamp()
+            }, { merge: true });
+            
+            b.innerText = "✅ DEPLOYED";
+            setTimeout(() => { b.innerText = "DEPLOY TO VAULT"; b.disabled = false; }, 2000);
+        } catch (e) { 
+            // Calculate exact removals needed for storage limit
+            const currentSize = JSON.stringify(assets).length;
+            const maxSize = 1000000; 
+            const overkill = Math.ceil((currentSize - maxSize) / (currentSize / assets.length));
+            b.innerText = `⚠️ REMOVE ${overkill + 1} ASSETS TO SAVE`; 
+            b.style.background = "var(--danger)";
+            setTimeout(() => { b.disabled = false; b.style.background = "var(--success)"; }, 4000);
+        }
+    };
+
+    async function initVault() {
+        if(!vaultID) return;
+        document.getElementById('sync-overlay').style.display = 'flex';
+        document.getElementById('loaderText').innerText = "FETCHING VAULT...";
+        try {
+            const snap = await getDoc(doc(db, "vault", vaultID));
+            if(snap.exists()){
+                assets = snap.data().images || [];
+                document.getElementById('textData').value = snap.data().textIntel || "";
+                render();
+            }
+        } finally { document.getElementById('sync-overlay').style.display = 'none'; }
+    }
+    initVault();
+</script>
+</body>
+</html>
